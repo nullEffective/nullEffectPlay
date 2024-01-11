@@ -11,6 +11,27 @@ jobs:
       - image: cimg/base:2022.05
     steps:
       - run: echo "Say hello to YAML!"
+
+  build:
+    working_directory: ~/repo
+    docker:
+      - image: cimg/go:1.15.10
+    steps:
+      - checkout
+      - restore_cache:
+          keys:
+            - go-mod-v4-{{ checksum "go.sum" }}
+      - run:
+          name: Install Dependencies
+          command: go get ./...
+      - save_cache:
+          key: go-mod-v4-{{ checksum "go.sum" }}
+          paths:
+            - "/go/pkg/mod"
+      - run:
+          name: Run tests
+          command: go test -v
+
   # Job two with a unique name
   say_goodbye:
     docker:
@@ -24,4 +45,5 @@ workflows:
     # List of jobs that will run
     jobs:
       - say_hello
+      - build
       - say_goodbye
