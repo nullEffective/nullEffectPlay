@@ -1,6 +1,9 @@
 # CircleCI configuration file
 version: 2.1
 
+orbs:
+  golang: cci-orb/golang@0.1.20
+
 jobs:
   # Job one with a unique name
   say_hello:
