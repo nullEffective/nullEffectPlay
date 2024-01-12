@@ -49,28 +49,22 @@ func percentage(amount float64, j []byte) string {
 	json.Unmarshal(j, &valueMap)
 
 	rates := valueMap["data"]["rates"] //.(map[string]interface{})
-	//fmt.Println("foo %v", rates)
-
 	btcString := rates["BTC"].(string)
 	ethString := rates["ETH"].(string)
 	btc, _ := strconv.ParseFloat(btcString, 32)
 	eth, _ := strconv.ParseFloat(ethString, 32)
-	fmt.Printf("%v %v\n", btc, eth)
 
-	/*
-		b, err := json.MarshalIndent(valueMap, "", "  ")
-		if err != nil {
-			fmt.Println("error:", err)
-		}
-		s := string(b)
-		fmt.Print(s)
-	*/
 	btc70 := amount * 0.7
 	eth30 := amount * 0.3
 	resultBtc := btc70 * btc
 	resultEth := eth30 * eth
 
-	return fmt.Sprintf("foo %v %v", resultBtc, resultEth)
+	resultMap := make(map[string]float64)
+	resultMap["BTC"] = resultBtc
+	resultMap["ETH"] = resultEth
+	jsonBytes, _ := json.MarshalIndent(resultMap, "", "   ")
+
+	return fmt.Sprintf("foo %v", string(jsonBytes))
 }
 
 func main() {
