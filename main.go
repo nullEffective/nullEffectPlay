@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"strconv"
+	"time"
 )
 
 func channel() {
@@ -20,7 +21,7 @@ func channel() {
 	fmt.Println(msg)
 }
 
-func convert(amount float64) string {
+func convertFromUrl(amount float64) string {
 	requestURL := "https://api.coinbase.com/v2/exchange-rates?currency=USD"
 	req, err := http.NewRequest(http.MethodGet, requestURL, nil)
 	if err != nil {
@@ -39,32 +40,39 @@ func convert(amount float64) string {
 	if err != nil {
 		panic(err)
 	}
-	fmt.Println(req)
-	return percentage(amount, resBody)
+	var valueMap map[string]map[string]map[string]string //lose currency value
+	json.Unmarshal(resBody, &valueMap)
+
+	rates := valueMap["data"]["rates"]
+
+	return convertFromMap(amount, rates)
 }
 
-func percentage(amount float64, j []byte) string {
+func convertFromMap(amount float64, rates map[string]string) string {
 
-	var valueMap map[string]map[string]map[string]interface{}
-	json.Unmarshal(j, &valueMap)
+	btcString := rates["BTC"]
+	ethString := rates["ETH"]
+	btc, _ := strconv.ParseFloat(btcString, 64)
+	eth, _ := strconv.ParseFloat(ethString, 64)
 
-	rates := valueMap["data"]["rates"] //.(map[string]interface{})
-	btcString := rates["BTC"].(string)
-	ethString := rates["ETH"].(string)
-	btc, _ := strconv.ParseFloat(btcString, 32)
-	eth, _ := strconv.ParseFloat(ethString, 32)
+	resultMap := make(map[string]interface{})
+	resultMap["BTC"] = calc(amount, .7, btc)
+	resultMap["ETH"] = calc(amount, .3, eth)
+	resultMap["timestamp"] = time.Now()
 
-	btc70 := amount * 0.7
-	eth30 := amount * 0.3
-	resultBtc := btc70 * btc
-	resultEth := eth30 * eth
+	jsonBytes, jsonErr := json.MarshalIndent(resultMap, "", "   ")
+	var json = "No json result"
+	if jsonErr != nil {
+		json = "Could not jsonize results"
+	} else {
+		json = string(jsonBytes)
+	}
+	return fmt.Sprintf("%v", json)
+}
 
-	resultMap := make(map[string]float64)
-	resultMap["BTC"] = resultBtc
-	resultMap["ETH"] = resultEth
-	jsonBytes, _ := json.MarshalIndent(resultMap, "", "   ")
-
-	return fmt.Sprintf("foo %v", string(jsonBytes))
+func calc(amount float64, percentage float64, coin float64) float64 {
+	amt := amount * percentage * coin
+	return amt
 }
 
 func main() {
@@ -81,5 +89,5 @@ func main() {
 		fmt.Println(err)
 		os.Exit(2)
 	}
-	fmt.Println(convert(a))
+	fmt.Println(convertFromUrl(a))
 }
