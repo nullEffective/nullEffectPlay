@@ -7,4 +7,4 @@
 
 `go build .'
 
-'go run main 1000`
+'go run main.go 1000`
