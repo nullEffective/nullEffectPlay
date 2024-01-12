@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -11,17 +12,7 @@ import (
 	"time"
 )
 
-func channel() {
-
-	messages := make(chan string, 2)
-
-	go func() { messages <- "ping" }()
-
-	msg := <-messages
-	fmt.Println(msg)
-}
-
-func convertFromUrl(amount float64) string {
+func getRatesMap() map[string]string {
 	requestURL := "https://api.coinbase.com/v2/exchange-rates?currency=USD"
 	req, err := http.NewRequest(http.MethodGet, requestURL, nil)
 	if err != nil {
@@ -44,11 +35,17 @@ func convertFromUrl(amount float64) string {
 	json.Unmarshal(resBody, &valueMap)
 
 	rates := valueMap["data"]["rates"]
-
-	return convertFromMap(amount, rates)
+	return rates
 }
 
-func convertFromMap(amount float64, rates map[string]string) string {
+func ConvertFromMap(amount float64, rates map[string]string) (map[string]interface{}, error) {
+
+	if _, ok := rates["BTC"]; !ok {
+		return nil, errors.New("Missing BTC value")
+	}
+	if _, ok := rates["ETH"]; !ok {
+		return nil, errors.New("Missing ETH value")
+	}
 
 	btcString := rates["BTC"]
 	ethString := rates["ETH"]
@@ -59,15 +56,16 @@ func convertFromMap(amount float64, rates map[string]string) string {
 	resultMap["BTC"] = calc(amount, .7, btc)
 	resultMap["ETH"] = calc(amount, .3, eth)
 	resultMap["timestamp"] = time.Now()
+	return resultMap, nil
+}
 
+func ToJson(resultMap map[string]interface{}) (string, error) {
 	jsonBytes, jsonErr := json.MarshalIndent(resultMap, "", "   ")
-	var json = "No json result"
 	if jsonErr != nil {
-		json = "Could not jsonize results"
-	} else {
-		json = string(jsonBytes)
+		return "", jsonErr //should use a pointer?
 	}
-	return fmt.Sprintf("%v", json)
+	json := string(jsonBytes)
+	return fmt.Sprintf("%v", json), nil
 }
 
 func calc(amount float64, percentage float64, coin float64) float64 {
@@ -81,13 +79,32 @@ func main() {
 	if len(argsWithProg) == 0 {
 		panic("Starting Dollar amount needed as program argument")
 	}
-	amount := os.Args[1]
-	fmt.Println("Converting for: [$" + amount + "]")
-	a, err := strconv.ParseFloat(amount, 32)
+	amountString := os.Args[1]
+	fmt.Println("Converting for: [$" + amountString + "]")
+	amount, err := strconv.ParseFloat(amountString, 64)
 	if err != nil {
 		// handle error
 		fmt.Println(err)
 		os.Exit(2)
 	}
-	fmt.Println(convertFromUrl(a))
+	var btc = "0.0"
+	var eth = "0.0"
+
+	for {
+		ratesMap := getRatesMap()
+		if ratesMap["BTC"] != btc || ratesMap["ETH"] != eth {
+			resultsMap, convertError := ConvertFromMap(amount, ratesMap)
+			if convertError != nil {
+				fmt.Print("E")
+			} else {
+				result, _ := ToJson(resultsMap)
+				fmt.Println("\n" + result)
+				btc = ratesMap["BTC"]
+				eth = ratesMap["ETH"]
+			}
+		} else {
+			fmt.Print(".")
+		}
+		time.Sleep(2 * time.Second)
+	}
 }
