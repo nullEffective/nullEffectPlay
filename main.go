@@ -40,6 +40,9 @@ func getRatesMap() map[string]string {
 
 func ConvertFromMap(amount float64, rates map[string]string) (map[string]interface{}, error) {
 
+	if amount <= 0 {
+		return nil, errors.New("Negative Amount now allowed")
+	}
 	if _, ok := rates["BTC"]; !ok {
 		return nil, errors.New("Missing BTC value")
 	}
